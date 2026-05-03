@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/springsecurity6">
+<head>
+  <title>Purchase Entry — SelfShop</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Arial, sans-serif; background: #f0f2f5; min-height: 100vh; }
+
+    .topbar {
+      background: #1a1a2e; color: white; padding: 0 28px; height: 60px;
+      display: flex; align-items: center; justify-content: space-between;
+      position: sticky; top: 0; z-index: 200;
+    }
+    .brand { font-size: 17px; font-weight: bold; letter-spacing: 0.5px; }
+
+    .profile-wrap { position: relative; }
+    .profile-btn {
+      display: flex; align-items: center; gap: 10px;
+      background: none; border: none; color: white;
+      cursor: pointer; padding: 6px 10px; border-radius: 8px; transition: background 0.15s;
+    }
+    .profile-btn:hover { background: rgba(255,255,255,0.1); }
+    .avatar-circle {
+      width: 36px; height: 36px; background: #007bff; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 15px; font-weight: bold; color: white; flex-shrink: 0;
+    }
+    .profile-info .pname { font-size: 14px; font-weight: bold; text-align: left; }
+    .profile-info .pemail { font-size: 11px; opacity: 0.65; }
+    .chevron { font-size: 10px; opacity: 0.6; margin-left: 2px; transition: transform 0.2s; }
+    .profile-btn.open .chevron { transform: rotate(180deg); }
+
+    .profile-dropdown {
+      display: none; position: absolute; top: calc(100% + 8px); right: 0;
+      width: 220px; background: white; border-radius: 10px;
+      box-shadow: 0 6px 24px rgba(0,0,0,0.15); z-index: 300;
+      overflow: hidden; border: 1px solid #e8e8e8;
+    }
+    .profile-dropdown.open { display: block; }
+    .dd-header {
+      padding: 14px 16px 12px; border-bottom: 1px solid #f0f0f0;
+      display: flex; align-items: center; gap: 10px;
+    }
+    .dd-avatar {
+      width: 38px; height: 38px; background: #007bff; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px; font-weight: bold; color: white; flex-shrink: 0;
+    }
+    .dd-name { font-size: 14px; font-weight: bold; color: #1a1a2e; }
+    .dd-role { font-size: 11px; color: #888; margin-top: 2px; }
+    .dd-menu { padding: 6px 0; }
+    .dd-item {
+      display: flex; align-items: center; gap: 12px;
+      padding: 11px 16px; font-size: 14px; color: #333;
+      text-decoration: none; cursor: pointer; transition: background 0.12s;
+      border: none; background: none; width: 100%; text-align: left;
+    }
+    .dd-item:hover { background: #f5f7ff; color: #007bff; }
+    .dd-item.danger { color: #dc3545; }
+    .dd-item.danger:hover { background: #fff5f5; color: #dc3545; }
+    .dd-icon {
+      width: 32px; height: 32px; border-radius: 8px; background: #f0f4ff;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 15px; flex-shrink: 0;
+    }
+    .dd-item.danger .dd-icon { background: #fff0f0; }
+    .dd-divider { height: 1px; background: #f0f0f0; margin: 4px 0; }
+
+    .main { padding: 28px; max-width: 860px; margin: 0 auto; }
+    .card { background: white; border-radius: 10px; padding: 24px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+    .card h2 { font-size: 18px; color: #1a1a2e; margin-bottom: 20px; }
+
+    .form-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; }
+    .form-group { display: flex; flex-direction: column; gap: 5px; }
+    .form-group label { font-size: 12px; color: #555; font-weight: bold; }
+
+    .dropdown-wrap { position: relative; min-width: 230px; }
+    #product-search {
+      width: 100%; padding: 9px 12px; border: 1.5px solid #ccc;
+      border-radius: 6px; font-size: 14px;
+    }
+    #product-search:focus { border-color: #007bff; outline: none; }
+    #dropdown-list {
+      display: none; position: absolute; top: 100%; left: 0; right: 0;
+      background: white; border: 1px solid #ccc; border-top: none;
+      border-radius: 0 0 6px 6px; max-height: 200px; overflow-y: auto;
+      z-index: 100; box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    }
+    #dropdown-list div { padding: 9px 12px; cursor: pointer; font-size: 14px; }
+    #dropdown-list div:hover { background: #f0f4ff; }
+    #dropdown-list div.no-match { color: #999; cursor: default; }
+    #dropdown-list div.no-match:hover { background: white; }
+    input[type=number] { padding: 9px 10px; border: 1.5px solid #ccc; border-radius: 6px; font-size: 14px; width: 80px; }
+
+    .btn { padding: 9px 18px; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: bold; }
+    .btn-primary { background: #007bff; color: white; }
+    .btn-primary:hover { background: #0069d9; }
+    .btn-success { background: #28a745; color: white; font-size: 15px; padding: 10px 24px; }
+    .btn-success:hover { background: #218838; }
+    .btn-row-delete {
+      padding: 5px 12px; background: #fff0f0; color: #dc3545;
+      border: 1px solid #f5c6cb; border-radius: 5px; cursor: pointer;
+      font-size: 12px; font-weight: bold; white-space: nowrap;
+    }
+    .btn-row-delete:hover { background: #ffd9d9; }
+
+    .cart-table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+    .cart-table th, .cart-table td { border: 1px solid #e8e8e8; padding: 9px 12px; font-size: 14px; text-align: left; vertical-align: middle; }
+    .cart-table th { background: #f7f8fa; font-weight: bold; }
+    .cart-tag {
+      display: inline-block; background: #e8f4e8; color: #256625;
+      font-size: 12px; padding: 2px 10px; border-radius: 10px; margin-left: 8px;
+    }
+    .empty-msg { color: #aaa; font-size: 14px; margin-top: 12px; }
+    .bill-actions { display: flex; gap: 12px; align-items: center; margin-top: 4px; }
+    .clear-link { color: #dc3545; font-size: 13px; text-decoration: none; }
+    .clear-link:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">SelfShop</div>
+  <div class="profile-wrap">
+    <button class="profile-btn" id="profile-btn" onclick="toggleDropdown(event)">
+      <div class="avatar-circle">A</div>
+      <div class="profile-info">
+        <div class="pname" sec:authentication="name">Admin</div>
+        <div class="pemail">Administrator</div>
+      </div>
+      <span class="chevron">▼</span>
+    </button>
+    <div class="profile-dropdown" id="profile-dropdown">
+      <div class="dd-header">
+        <div class="dd-avatar">A</div>
+        <div>
+          <div class="dd-name" sec:authentication="name">Admin</div>
+          <div class="dd-role">Administrator</div>
+        </div>
+      </div>
+      <div class="dd-menu">
+        <a href="javascript:void(0)" class="dd-item" onclick="askCataloguePassword(event)">
+          <span class="dd-icon">📦</span> Product Catalogue
+        </a>
+        <div class="dd-divider"></div>
+        <form th:action="@{/logout}" method="post" style="margin:0">
+          <button type="submit" class="dd-item danger">
+            <span class="dd-icon">🚪</span> Logout
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="main">
+  <div class="card">
+    <h2>Purchase Entry
+      <span class="cart-tag"
+            th:text="${session.cart != null ? session.cart.size() + ' item(s)' : '0 items'}">
+      </span>
+    </h2>
+
+    <form th:action="@{/cart/add}" method="post">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Select product</label>
+          <div class="dropdown-wrap">
+            <input type="text" id="product-search" placeholder="Type to search..." autocomplete="off"/>
+            <input type="hidden" name="productId" id="selected-product-id"/>
+            <div id="dropdown-list">
+              <div th:each="p : ${products}"
+                   th:attr="data-id=${p.id}, data-name=${p.name}, data-price=${p.formattedPrice}"
+                   class="dropdown-option"
+                   th:text="${p.name} + ' — ₹' + ${p.formattedPrice}">
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Qty</label>
+          <input type="number" name="qty" value="1" min="1"/>
+        </div>
+        <div class="form-group">
+          <label>&nbsp;</label>
+          <button type="submit" class="btn btn-primary">Add to bill</button>
+        </div>
+      </div>
+    </form>
+
+    <!-- Cart table with Delete per row -->
+    <div th:if="${session.cart != null and not #lists.isEmpty(session.cart)}">
+      <table class="cart-table">
+        <tr><th>#</th><th>Product</th><th>Price</th><th>Qty</th><th>Subtotal</th><th>Action</th></tr>
+        <tr th:each="item, stat : ${session.cart}">
+          <td th:text="${stat.index + 1}"></td>
+          <td th:text="${item.productName}"></td>
+          <td th:text="'₹' + ${item.formattedPrice}"></td>
+          <td th:text="${item.qty}"></td>
+          <td th:text="'₹' + ${item.formattedTotal}"></td>
+          <td>
+            <a th:href="@{/cart/remove/{i}(i=${stat.index})}">
+              <button class="btn-row-delete" type="button">Delete</button>
+            </a>
+          </td>
+        </tr>
+      </table>
+      <div class="bill-actions">
+        <a href="/checkout"><button class="btn btn-success" type="button">Checkout → Invoice</button></a>
+        <a href="/cart/clear" class="clear-link">Clear all</a>
+      </div>
+    </div>
+    <p class="empty-msg" th:if="${session.cart == null or #lists.isEmpty(session.cart)}">
+      No items added yet. Select a product above to begin.
+    </p>
+  </div>
+</div>
+
+<script>
+  function toggleDropdown(e) {
+    e.stopPropagation();
+    document.getElementById('profile-btn').classList.toggle('open');
+    document.getElementById('profile-dropdown').classList.toggle('open');
+  }
+  document.addEventListener('click', function() {
+    document.getElementById('profile-btn').classList.remove('open');
+    document.getElementById('profile-dropdown').classList.remove('open');
+  });
+
+  const searchInput = document.getElementById('product-search');
+  const dropdown = document.getElementById('dropdown-list');
+  const hiddenId = document.getElementById('selected-product-id');
+  const options = Array.from(document.querySelectorAll('.dropdown-option'));
+
+  function renderDropdown(filter) {
+    dropdown.innerHTML = '';
+    const filtered = filter
+      ? options.filter(o => o.dataset.name.toLowerCase().includes(filter.toLowerCase()))
+      : options;
+    if (filtered.length === 0) {
+      const d = document.createElement('div');
+      d.className = 'no-match';
+      d.textContent = 'No products found';
+      dropdown.appendChild(d);
+    } else {
+      filtered.forEach(o => {
+        const d = document.createElement('div');
+        d.textContent = o.dataset.name + ' — ₹' + o.dataset.price;
+        d.addEventListener('mousedown', () => {
+          searchInput.value = o.dataset.name;
+          hiddenId.value = o.dataset.id;
+          dropdown.style.display = 'none';
+        });
+        dropdown.appendChild(d);
+      });
+    }
+  }
+
+  searchInput.addEventListener('focus', () => { renderDropdown(searchInput.value); dropdown.style.display = 'block'; });
+  searchInput.addEventListener('input', () => { hiddenId.value = ''; renderDropdown(searchInput.value); dropdown.style.display = 'block'; });
+  document.addEventListener('click', e => { if (!e.target.closest('.dropdown-wrap')) dropdown.style.display = 'none'; });
+</script>
+<!-- Password overlay -->
+<div id="pw-overlay" style="
+  display:none; position:fixed; inset:0;
+  background:rgba(0,0,0,0.45); z-index:1000;
+  align-items:center; justify-content:center;">
+  <div style="
+    background:white; border-radius:12px; padding:32px 28px;
+    width:100%; max-width:360px; box-shadow:0 8px 32px rgba(0,0,0,0.2);
+    position:relative;">
+    <button onclick="closePwOverlay()" style="
+      position:absolute; top:12px; right:14px;
+      background:none; border:none; font-size:20px;
+      color:#aaa; cursor:pointer; line-height:1;">✕</button>
+    <div style="text-align:center; margin-bottom:20px;">
+      <div style="
+        width:48px; height:48px; background:#f0f4ff;
+        border-radius:12px; display:inline-flex;
+        align-items:center; justify-content:center;
+        font-size:22px; margin-bottom:10px;">🔒</div>
+      <div style="font-size:17px; font-weight:bold; color:#1a1a2e;">Product Catalogue</div>
+      <div style="font-size:13px; color:#888; margin-top:4px;">Enter the admin password to continue</div>
+    </div>
+    <input type="password" id="catalogue-pw-input"
+      placeholder="Enter password"
+      style="
+        width:100%; padding:10px 14px; border:1.5px solid #ddd;
+        border-radius:6px; font-size:15px; outline:none;
+        transition:border-color 0.2s; margin-bottom:8px;"
+      onfocus="this.style.borderColor='#007bff'"
+      onblur="this.style.borderColor='#ddd'"
+      onkeydown="if(event.key==='Enter') verifyCataloguePassword()"/>
+    <div id="pw-error" style="
+      color:#dc3545; font-size:13px; margin-bottom:8px;
+      display:none;">Incorrect password. Please try again.</div>
+    <button onclick="verifyCataloguePassword()" style="
+      width:100%; padding:11px; background:#007bff; color:white;
+      border:none; border-radius:6px; font-size:15px;
+      font-weight:bold; cursor:pointer; margin-top:4px;">
+      Unlock
+    </button>
+  </div>
+</div>
+
+<script>
+  // ── existing dropdown script stays above, add these below ──
+
+  function askCataloguePassword(e) {
+    e.stopPropagation();
+    // close dropdown first
+    document.getElementById('profile-btn').classList.remove('open');
+    document.getElementById('profile-dropdown').classList.remove('open');
+    // show overlay
+    const overlay = document.getElementById('pw-overlay');
+    overlay.style.display = 'flex';
+    setTimeout(() => document.getElementById('catalogue-pw-input').focus(), 50);
+    document.getElementById('pw-error').style.display = 'none';
+    document.getElementById('catalogue-pw-input').value = '';
+  }
+
+  function closePwOverlay() {
+    document.getElementById('pw-overlay').style.display = 'none';
+  }
+
+  function verifyCataloguePassword() {
+    const entered = document.getElementById('catalogue-pw-input').value;
+    if (entered === 'admin123') {
+      closePwOverlay();
+      window.location.href = '/products';
+    } else {
+      document.getElementById('pw-error').style.display = 'block';
+      document.getElementById('catalogue-pw-input').value = '';
+      document.getElementById('catalogue-pw-input').focus();
+    }
+  }
+
+  // Close overlay on background click
+  document.getElementById('pw-overlay').addEventListener('click', function(e) {
+    if (e.target === this) closePwOverlay();
+  });
+</script>
+</body>
+</html>

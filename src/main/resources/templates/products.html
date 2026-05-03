@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/springsecurity6">
+<head>
+  <title>Product Catalogue — SelfShop</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Arial, sans-serif; background: #f0f2f5; min-height: 100vh; }
+
+    .topbar {
+      background: #1a1a2e; color: white;
+      padding: 0 28px; height: 60px;
+      display: flex; align-items: center; justify-content: space-between;
+      position: sticky; top: 0; z-index: 200;
+    }
+    .brand { font-size: 17px; font-weight: bold; }
+    .brand a { color: white; text-decoration: none; }
+    .brand .sep { opacity: 0.4; margin: 0 8px; }
+    .brand .current { opacity: 1; }
+
+    .profile-wrap { position: relative; }
+    .profile-btn {
+      display: flex; align-items: center; gap: 10px;
+      background: none; border: none; color: white;
+      cursor: pointer; padding: 6px 10px; border-radius: 8px;
+      transition: background 0.15s;
+    }
+    .profile-btn:hover { background: rgba(255,255,255,0.1); }
+    .avatar-circle {
+      width: 36px; height: 36px; background: #007bff; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 15px; font-weight: bold; color: white; flex-shrink: 0;
+    }
+    .profile-info .pname { font-size: 14px; font-weight: bold; text-align: left; }
+    .profile-info .pemail { font-size: 11px; opacity: 0.65; }
+    .chevron { font-size: 10px; opacity: 0.6; margin-left: 2px; transition: transform 0.2s; }
+    .profile-btn.open .chevron { transform: rotate(180deg); }
+
+    .profile-dropdown {
+      display: none; position: absolute; top: calc(100% + 8px); right: 0;
+      width: 220px; background: white; border-radius: 10px;
+      box-shadow: 0 6px 24px rgba(0,0,0,0.15); z-index: 300;
+      overflow: hidden; border: 1px solid #e8e8e8;
+    }
+    .profile-dropdown.open { display: block; }
+    .dd-header {
+      padding: 14px 16px 12px; border-bottom: 1px solid #f0f0f0;
+      display: flex; align-items: center; gap: 10px;
+    }
+    .dd-avatar {
+      width: 38px; height: 38px; background: #007bff; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px; font-weight: bold; color: white; flex-shrink: 0;
+    }
+    .dd-name { font-size: 14px; font-weight: bold; color: #1a1a2e; }
+    .dd-role { font-size: 11px; color: #888; margin-top: 2px; }
+    .dd-menu { padding: 6px 0; }
+    .dd-item {
+      display: flex; align-items: center; gap: 12px;
+      padding: 11px 16px; font-size: 14px; color: #333;
+      text-decoration: none; cursor: pointer; transition: background 0.12s;
+      border: none; background: none; width: 100%; text-align: left;
+    }
+    .dd-item:hover { background: #f5f7ff; color: #007bff; }
+    .dd-item.danger { color: #dc3545; }
+    .dd-item.danger:hover { background: #fff5f5; color: #dc3545; }
+    .dd-icon {
+      width: 32px; height: 32px; border-radius: 8px; background: #f0f4ff;
+      display: flex; align-items: center; justify-content: center; font-size: 15px; flex-shrink: 0;
+    }
+    .dd-item.danger .dd-icon { background: #fff0f0; }
+    .dd-divider { height: 1px; background: #f0f0f0; margin: 4px 0; }
+
+    .main { padding: 28px; max-width: 820px; margin: 0 auto; }
+    .page-header {
+      display: flex; align-items: center; gap: 12px; margin-bottom: 24px; flex-wrap: wrap;
+    }
+    .page-header h1 { font-size: 22px; font-weight: bold; color: #1a1a2e; }
+    .badge-count {
+      background: #007bff; color: white; font-size: 12px;
+      padding: 3px 10px; border-radius: 10px; font-weight: bold;
+    }
+    .back-link {
+      margin-left: auto; font-size: 13px; color: #007bff;
+      text-decoration: none; background: #f0f4ff;
+      padding: 5px 14px; border-radius: 20px;
+    }
+    .back-link:hover { background: #dce8ff; }
+
+    .card {
+      background: white; border-radius: 10px; padding: 24px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08); margin-bottom: 20px;
+    }
+    .card-title {
+      font-size: 12px; font-weight: bold; color: #888;
+      text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 16px;
+    }
+
+    .add-form { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; }
+    .field { display: flex; flex-direction: column; gap: 5px; }
+    .field label { font-size: 12px; font-weight: bold; color: #444; }
+    .field input {
+      padding: 9px 12px; border: 1.5px solid #ddd;
+      border-radius: 6px; font-size: 14px; outline: none; transition: border-color 0.2s;
+    }
+    .field input:focus { border-color: #007bff; }
+    .field input[type=text] { width: 220px; }
+    .field input[type=number] { width: 140px; }
+
+    .btn-add { padding: 9px 20px; background: #007bff; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: bold; }
+    .btn-add:hover { background: #0069d9; }
+
+    /* Product table */
+    table { width: 100%; border-collapse: collapse; }
+    th, td { border: 1px solid #eee; padding: 11px 14px; font-size: 14px; text-align: left; vertical-align: middle; }
+    th { background: #f7f8fa; font-weight: bold; color: #555; font-size: 13px; }
+    tbody tr:hover td { background: #fafbff; }
+
+    .btn-update {
+      padding: 6px 14px; background: #f0f4ff; color: #007bff;
+      border: 1px solid #c8d8ff; border-radius: 5px; cursor: pointer;
+      font-size: 13px; font-weight: bold;
+    }
+    .btn-update:hover { background: #dce8ff; }
+    .btn-delete {
+      padding: 6px 14px; background: #fff0f0; color: #dc3545;
+      border: 1px solid #f5c6cb; border-radius: 5px; cursor: pointer;
+      font-size: 13px; font-weight: bold;
+    }
+    .btn-delete:hover { background: #ffd9d9; }
+    .btn-save {
+      padding: 6px 14px; background: #28a745; color: white;
+      border: none; border-radius: 5px; cursor: pointer; font-size: 13px; font-weight: bold;
+    }
+    .btn-save:hover { background: #218838; }
+    .btn-cancel {
+      padding: 6px 12px; background: #f0f0f0; color: #555;
+      border: none; border-radius: 5px; cursor: pointer; font-size: 13px;
+    }
+    .btn-cancel:hover { background: #e0e0e0; }
+
+    .action-btns { display: flex; gap: 8px; }
+    .edit-input {
+      padding: 6px 10px; border: 1.5px solid #007bff;
+      border-radius: 5px; font-size: 14px;
+    }
+    .empty-msg { color: #bbb; font-size: 14px; text-align: center; padding: 32px 0; }
+  </style>
+<meta name="_csrf" th:content="${_csrf.token}"/>
+<meta name="_csrf_header" th:content="${_csrf.headerName}"/>
+</head>
+<body>
+
+<div class="topbar">
+    <div class="brand">
+      <a href="/">SelfShop</a>
+      <span class="sep"></span>
+      <span class="current">Product Catalogue</span>
+    </div>
+  <div class="profile-wrap">
+    <button class="profile-btn" id="profile-btn" onclick="toggleDropdown(event)">
+      <div class="avatar-circle">A</div>
+      <div class="profile-info">
+        <div class="pname" sec:authentication="name">Admin</div>
+        <div class="pemail">Administrator</div>
+      </div>
+      <span class="chevron">▼</span>
+    </button>
+    <div class="profile-dropdown" id="profile-dropdown">
+      <div class="dd-header">
+        <div class="dd-avatar">A</div>
+        <div>
+          <div class="dd-name" sec:authentication="name">Admin</div>
+          <div class="dd-role">Administrator</div>
+        </div>
+      </div>
+      <div class="dd-menu">
+        <a href="javascript:void(0)" class="dd-item" onclick="askCataloguePassword(event)">
+          <span class="dd-icon">📦</span> Product Catalogue
+        </a>
+        <div class="dd-divider"></div>
+        <form th:action="@{/logout}" method="post" style="margin:0">
+          <button type="submit" class="dd-item danger">
+            <span class="dd-icon">🚪</span> Logout
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="main">
+  <div class="page-header">
+    <h1>Product Catalogue</h1>
+    <span class="badge-count" th:text="${products.size()} + ' products'"></span>
+    <a href="/" class="back-link">← Back to Purchase Entry</a>
+  </div>
+
+  <!-- Add product -->
+  <div class="card">
+    <div class="card-title">Add new product</div>
+    <form th:action="@{/products/add}" method="post">
+      <div class="add-form">
+        <div class="field">
+          <label>Product name</label>
+          <input type="text" name="name" placeholder="e.g. Rice 1kg" required/>
+        </div>
+        <div class="field">
+          <label>Price (₹)</label>
+          <input type="number" name="price" step="0.01" min="0" placeholder="0.00" required/>
+        </div>
+        <input type="hidden" name="quantity" value="0"/>
+        <div class="field">
+          <label>&nbsp;</label>
+          <button type="submit" class="btn-add">Add Product</button>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  <!-- Product list -->
+  <div class="card">
+    <div class="card-title">All products</div>
+    <p class="empty-msg" th:if="${#lists.isEmpty(products)}">No products yet. Add one above.</p>
+    <table th:unless="${#lists.isEmpty(products)}">
+      <thead>
+        <tr><th style="width:50px">#</th><th>Product Name</th><th style="width:140px">Price</th><th style="width:200px">Actions</th></tr>
+      </thead>
+      <tbody>
+        <tr th:each="p, stat : ${products}">
+          <td th:text="${stat.index + 1}"></td>
+          <td>
+            <!-- view mode -->
+            <span th:id="'view-name-' + ${p.id}" th:text="${p.name}"></span>
+            <!-- edit mode (hidden) -->
+            <input th:id="'edit-name-' + ${p.id}"
+                   class="edit-input"
+                   th:value="${p.name}"
+                   style="display:none; width:180px"/>
+          </td>
+          <td>
+            <span th:id="'view-price-' + ${p.id}" th:text="'₹' + ${p.formattedPrice}"></span>
+            <input th:id="'edit-price-' + ${p.id}"
+                   class="edit-input" type="number" step="0.01"
+                   th:value="${p.price}"
+                   style="display:none; width:100px"/>
+          </td>
+          <td>
+            <!-- View mode buttons -->
+            <div class="action-btns" th:id="'view-actions-' + ${p.id}">
+              <button class="btn-update"
+                      th:onclick="'startEdit(' + ${p.id} + ')'">Update</button>
+              <a th:href="@{/products/delete/{id}(id=${p.id})}">
+                <button class="btn-delete" type="button">Delete</button>
+              </a>
+            </div>
+            <!-- Edit mode buttons (hidden) -->
+            <div class="action-btns" th:id="'edit-actions-' + ${p.id}" style="display:none">
+              <button class="btn-save"
+                      th:onclick="'saveEdit(' + ${p.id} + ')'">Save</button>
+              <button class="btn-cancel"
+                      th:onclick="'cancelEdit(' + ${p.id} + ')'">Cancel</button>
+            </div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+  function toggleDropdown(e) {
+    e.stopPropagation();
+    document.getElementById('profile-btn').classList.toggle('open');
+    document.getElementById('profile-dropdown').classList.toggle('open');
+  }
+  document.addEventListener('click', function() {
+    document.getElementById('profile-btn').classList.remove('open');
+    document.getElementById('profile-dropdown').classList.remove('open');
+  });
+
+  function startEdit(id) {
+    document.getElementById('view-name-' + id).style.display = 'none';
+    document.getElementById('view-price-' + id).style.display = 'none';
+    document.getElementById('edit-name-' + id).style.display = 'inline-block';
+    document.getElementById('edit-price-' + id).style.display = 'inline-block';
+    document.getElementById('view-actions-' + id).style.display = 'none';
+    document.getElementById('edit-actions-' + id).style.display = 'flex';
+  }
+
+  function cancelEdit(id) {
+    document.getElementById('view-name-' + id).style.display = 'inline';
+    document.getElementById('view-price-' + id).style.display = 'inline';
+    document.getElementById('edit-name-' + id).style.display = 'none';
+    document.getElementById('edit-price-' + id).style.display = 'none';
+    document.getElementById('view-actions-' + id).style.display = 'flex';
+    document.getElementById('edit-actions-' + id).style.display = 'none';
+  }
+
+  function askCataloguePassword(e) {
+    e.stopPropagation();
+    document.getElementById('profile-btn').classList.remove('open');
+    document.getElementById('profile-dropdown').classList.remove('open');
+    const overlay = document.getElementById('pw-overlay');
+    overlay.style.display = 'flex';
+    setTimeout(() => document.getElementById('catalogue-pw-input').focus(), 50);
+    document.getElementById('pw-error').style.display = 'none';
+    document.getElementById('catalogue-pw-input').value = '';
+  }
+
+  function closePwOverlay() {
+    document.getElementById('pw-overlay').style.display = 'none';
+  }
+
+  function verifyCataloguePassword() {
+    const entered = document.getElementById('catalogue-pw-input').value;
+    if (entered === 'admin123') {
+      closePwOverlay();
+      window.location.href = '/products';
+    } else {
+      document.getElementById('pw-error').style.display = 'block';
+      document.getElementById('catalogue-pw-input').value = '';
+      document.getElementById('catalogue-pw-input').focus();
+    }
+  }
+
+  document.getElementById('pw-overlay').addEventListener('click', function(e) {
+    if (e.target === this) closePwOverlay();
+  });
+
+function saveEdit(id) {
+    const name = document.getElementById('edit-name-' + id).value.trim();
+    const price = document.getElementById('edit-price-' + id).value.trim();
+    if (!name || !price) { alert('Name and price cannot be empty.'); return; }
+
+    const csrfToken = document.querySelector('meta[name="_csrf"]').getAttribute('content');
+    const csrfHeader = document.querySelector('meta[name="_csrf_header"]').getAttribute('content');
+
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '/products/update';
+
+    const csrf = document.createElement('input');
+    csrf.type = 'hidden';
+    csrf.name = '_csrf';
+    csrf.value = csrfToken;
+
+    const inputId = document.createElement('input');
+    inputId.name = 'id'; inputId.value = id;
+
+    const inputName = document.createElement('input');
+    inputName.name = 'name'; inputName.value = name;
+
+    const inputPrice = document.createElement('input');
+    inputPrice.name = 'price'; inputPrice.value = price;
+
+    form.appendChild(csrf);
+    form.appendChild(inputId);
+    form.appendChild(inputName);
+    form.appendChild(inputPrice);
+    document.body.appendChild(form);
+    form.submit();
+}
+</script>
+<!-- Password overlay (same as index) -->
+<div id="pw-overlay" style="
+  display:none; position:fixed; inset:0;
+  background:rgba(0,0,0,0.45); z-index:1000;
+  align-items:center; justify-content:center;">
+  <div style="
+    background:white; border-radius:12px; padding:32px 28px;
+    width:100%; max-width:360px; box-shadow:0 8px 32px rgba(0,0,0,0.2);
+    position:relative;">
+    <button onclick="closePwOverlay()" style="
+      position:absolute; top:12px; right:14px;
+      background:none; border:none; font-size:20px;
+      color:#aaa; cursor:pointer; line-height:1;">✕</button>
+    <div style="text-align:center; margin-bottom:20px;">
+      <div style="
+        width:48px; height:48px; background:#f0f4ff;
+        border-radius:12px; display:inline-flex;
+        align-items:center; justify-content:center;
+        font-size:22px; margin-bottom:10px;">🔒</div>
+      <div style="font-size:17px; font-weight:bold; color:#1a1a2e;">Product Catalogue</div>
+      <div style="font-size:13px; color:#888; margin-top:4px;">Enter the admin password to continue</div>
+    </div>
+    <input type="password" id="catalogue-pw-input"
+      placeholder="Enter password"
+      style="
+        width:100%; padding:10px 14px; border:1.5px solid #ddd;
+        border-radius:6px; font-size:15px; outline:none;
+        transition:border-color 0.2s; margin-bottom:8px;"
+      onfocus="this.style.borderColor='#007bff'"
+      onblur="this.style.borderColor='#ddd'"
+      onkeydown="if(event.key==='Enter') verifyCataloguePassword()"/>
+    <div id="pw-error" style="
+      color:#dc3545; font-size:13px; margin-bottom:8px;
+      display:none;">Incorrect password. Please try again.</div>
+    <button onclick="verifyCataloguePassword()" style="
+      width:100%; padding:11px; background:#007bff; color:white;
+      border:none; border-radius:6px; font-size:15px;
+      font-weight:bold; cursor:pointer; margin-top:4px;">
+      Unlock
+    </button>
+  </div>
+</div>
+</body>
+</html>
